@@ -171,6 +171,17 @@ class PipelineSpec extends AnyFunSpec
       )
       res.get.size should equal(4)
     }
+
+    it("should handle keys containing single and double quotes") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val res = client.batchedPipeline(
+        List(
+          () => client.lpush("key'1", "va1", "va2"),
+          () => client.rpush("""key"2""", "va3", "va4")
+        )
+      )
+      res.get.size should equal(2)
+    }
   }
 
   describe("pipeline with batch submission with custom serialization - 1") {
@@ -217,5 +228,47 @@ class PipelineSpec extends AnyFunSpec
       println(res)
       res.get.size should equal(4)
     }
+  }
+
+  describe("pipeline with batch submission for TTL (expire) commands") {
+    it("should accept setting simple key/value followed by an expiration, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val res = client.batchedPipeline(
+        List(
+          () => client.set("key1", "val1"),
+          () => client.expire("key1", 1000),
+          () => client.set("key2", "val2"),
+          () => client.expire("key2", 1000)
+        )
+      )
+      println(res)
+      res.get.size should equal(4)
+    }
+  }
+
+  it("should accept pushing items on to a list followed by an expiration, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val res = client.batchedPipeline(
+        List(
+          () => client.lpush("key1", "val1" :: "val2" :: "val3" :: Nil),
+          () => client.lpush("key1", "val4" :: "val5" :: "val6" :: Nil),
+          () => client.expire("key1", 1000)
+        )
+      )
+      println(res)
+      res.get.size should equal(3)
+  }
+
+  it("should accept pushing binary data onto a list followed by an expiration, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val data: List[Array[Byte]] = List("foo","bar","bazz").map(_.getBytes("ASCII")) // purposely not UTF-8
+      val res = client.batchedPipeline(
+        List(
+          () => client.lpush("key1", data),
+          () => client.expire("key1", 1000)
+        )
+      )
+      println(res)
+      res.get.size should equal(2)
   }
 }
