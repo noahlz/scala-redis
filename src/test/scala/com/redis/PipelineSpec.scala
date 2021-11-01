@@ -198,6 +198,53 @@ class PipelineSpec extends AnyFunSpec
       println(res)
       res.get.size should equal(1)
     }
+
+    it("can pipeline zadd, followed by an expire, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val val1 = (0d, "value1")
+      val val2 = (0d, "value2")
+      val val3 = (0d, "value3")
+
+      val res = client.batchedPipeline(
+        List(
+          () => client.zadd("key1", 0d, "value0", val1, val2, val3),
+          () => client.expire("key1", 30)
+        )
+      )
+      println(res)
+      res.get.size should equal(2)
+    }
+
+    it("can pipeline zadd when the keys contain spaces, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val val1 = (0d, "value 1")
+      val val2 = (0d, "value 2")
+      val val3 = (0d, "valu2 3")
+
+      val res = client.batchedPipeline(
+        List(
+          () => client.zadd("key1", 0d, "value0", val1, val2, val3)
+        )
+      )
+      println(res)
+      res.get.size should equal(1)
+    }
+
+    it("can pipeline zadd when the keys contain spaces, followed by an expire, in batch") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val val1 = (0d, "value 1")
+      val val2 = (0d, "value 2")
+      val val3 = (0d, "valu2 3")
+
+      val res = client.batchedPipeline(
+        List(
+          () => client.zadd("key1", 0d, "value0", val1, val2, val3),
+          () => client.expire("key1", 30)
+        )
+      )
+      println(res)
+      res.get.size should equal(2)
+    }
   }
 
   describe("pipeline with batch submission with custom serialization - 1") {
