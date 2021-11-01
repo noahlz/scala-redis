@@ -182,6 +182,22 @@ class PipelineSpec extends AnyFunSpec
       )
       res.get.size should equal(2)
     }
+
+    it("should handle values consisting of Kryo serialized string data") {
+      // the below are Scala strings serialized with a Kryo, a popular serialization library
+      val data1 = Array(3, 1, 45, 55, 52, 50, 51, 52, 57, 50, 57, 53, 58, 45, 49, 48, 56, 51, 48, 53, 53, 54, 52, -71)
+      val data2 = Array(3, 1, 54, 49, 56, 48, 53, 99, 49, 102, 48, 99, 56, 55, 56, 100, 49, 49, 50, 49, 101, 57, 49, 48, 99, 101, 58, 80, 73, -44)
+
+      val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+
+      val res = client.batchedPipeline(
+        List(
+          () => client.lpush("key1", data1, data2)
+        )
+      )
+      println(res)
+      res.get.size should equal(1)
+    }
   }
 
   describe("pipeline with batch submission with custom serialization - 1") {
