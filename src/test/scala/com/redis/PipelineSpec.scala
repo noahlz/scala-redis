@@ -236,7 +236,9 @@ class PipelineSpec extends AnyFunSpec
       println(res)
       res.get.size should equal(4)
     }
+  }
 
+  describe("pipelined with batch submission list operations") {
     it("can pipeline zadd, followed by an expire, in batch") {
       val client = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
       val val1 = (0d, "value1")
@@ -298,6 +300,25 @@ class PipelineSpec extends AnyFunSpec
       )
       println(res)
       res.get.size should equal(2)
+    }
+
+    it("can insert values in batch with zadd, and then later fetch them with zrange as they were inserted") {
+      val batchClient = new RedisClient(redisContainerHost, redisContainerPort, batch = RedisClient.BATCH)
+      val val1 = (0d, "bazzbazz")
+      val val2 = (0d, "bazzbar")
+
+      val res = batchClient.batchedPipeline(
+        List(
+          () => batchClient.zadd("key1", 0d, "foobar", val1, val2)
+        )
+      )
+
+      res.get.size should equal(1)
+
+      val simpleClient = new RedisClient(redisContainerHost, redisContainerPort)
+      val values = simpleClient.zrange("key1", 0, -1).getOrElse(List.empty[String])
+
+      values should contain theSameElementsAs List("bazzbar","bazzbazz","foobar")
     }
   }
 
