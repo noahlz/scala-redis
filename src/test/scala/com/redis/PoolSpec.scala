@@ -148,5 +148,25 @@ class SecurePoolSpec extends BasePoolSpec {
       response should equal(Some("PONG"))
     }
   }
+
+  private def shutdown(client: RedisClient) = {
+    client.disconnect
+    client.close()
+  }
+
+  // sanity check that the password set in the whisk docker container is working
+  describe("ad-hoc clients connecting to a secure redis server") {
+    it("should be rejected for no password") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort)
+      an[Exception] shouldBe thrownBy(client.ping)
+      shutdown(client)
+    }
+
+    it("should be rejected for wrong password") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, secret = Some("WRONG"))
+      an[Exception] shouldBe thrownBy(client.ping)
+      shutdown(client)
+    }
+  }
 }
 
