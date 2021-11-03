@@ -364,3 +364,55 @@ class PipelineSpec extends AnyFunSpec
     }
   }
 }
+
+class SecureBatchedPipelineSpec extends AnyFunSpec
+                   with Matchers
+                   with IntSpec
+                   with Inside {
+
+  override protected lazy val r: RedisClient =
+    new RedisClient(redisContainerHost, redisContainerPort)
+
+  override val redisPassword = Some("antirez")
+
+  private def shutdown(client: RedisClient) {
+    client.disconnect
+    client.close()
+  }
+
+  describe("a redis client in batch mode connecting to a password-protected redis instance") {
+    it("should be able to connect to the instance") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, secret = redisPassword,
+        batch = RedisClient.BATCH)
+
+      noException should be thrownBy {
+        val res = client.batchedPipeline(List(() => { client.ping }))
+        res.get should contain only ("PONG")
+      }
+
+      shutdown(client)
+    }
+
+    it("should be rejected when it is not initialized with a password") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, secret = None,
+        batch = RedisClient.BATCH)
+
+      an[Exception] shouldBe thrownBy {
+        client.batchedPipeline(List(() => { client.ping }))
+      }
+
+      shutdown(client)
+    }
+
+    it("should be rejected when it is initialized with an incorrect password") {
+      val client = new RedisClient(redisContainerHost, redisContainerPort, secret = Some("WRONG"),
+        batch = RedisClient.BATCH)
+
+      an[Exception] shouldBe thrownBy {
+        client.batchedPipeline(List(() => { client.ping }))
+      }
+
+      shutdown(client)
+    }
+  }
+}
