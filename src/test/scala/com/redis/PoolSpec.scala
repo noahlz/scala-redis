@@ -8,12 +8,13 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent._
 import scala.concurrent.duration._
 
-class PoolSpec extends AnyFunSpec
+abstract class BasePoolSpec extends AnyFunSpec
                with Matchers
                with BeforeAndAfterEach
                with RedisDocker {
 
-  implicit lazy val clients: RedisClientPool = new RedisClientPool(redisContainerHost, redisContainerPort)
+  implicit lazy val clients: RedisClientPool =
+    new RedisClientPool(redisContainerHost, redisContainerPort, secret = redisPassword)
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -32,6 +33,10 @@ class PoolSpec extends AnyFunSpec
     clients.close()
     super.afterAll()
   }
+}
+
+trait PoolLoadTesting {
+  self: BasePoolSpec =>
 
   def lp(msgs: List[String]) = {
     clients.withClient {
@@ -63,6 +68,9 @@ class PoolSpec extends AnyFunSpec
       }
     }
   }
+}
+
+class PoolSpec extends BasePoolSpec with PoolLoadTesting {
 
   describe("pool test") {
     it("should distribute work amongst the clients") {
@@ -127,3 +135,18 @@ class PoolSpec extends AnyFunSpec
     }
   }
 }
+
+class SecurePoolSpec extends BasePoolSpec {
+
+  override val redisPassword = Option("mayonaise")
+
+  describe("redis pools with authentication") {
+    it("should be able to connect as normal") {
+      val response = clients.withClient { client =>
+        client.ping
+       }
+      response should equal(Some("PONG"))
+    }
+  }
+}
+

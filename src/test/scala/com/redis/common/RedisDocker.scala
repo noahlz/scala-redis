@@ -54,8 +54,12 @@ trait RedisContainer extends DockerKit with DockerTestKit with DockerKitDockerJa
 
   protected val redisContainerHost: String = "localhost"
   protected val redisPort: Int = 6379
+  protected val redisPassword: Option[String] = None
 
-  protected def baseContainer(name: Option[String]) = DockerContainer("redis:latest", name=name)
+  // just password supported for now
+  private def args = redisPassword.map(password => Seq("--requirepass", password))
+
+  protected def baseContainer(name: Option[String]) = DockerContainer("redis:latest", name=name, command=args)
 
   protected def createContainer(name: Option[String] = Some(RandomStringUtils.randomAlphabetic(10)),
                                 ports: Map[Int, Int] = Map.empty): DockerContainer = {
